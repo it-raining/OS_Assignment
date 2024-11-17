@@ -4,7 +4,7 @@
  * Memory physical module mm/mm-memphy.c
  */
 
-#include "mm.h"
+#include "../include/mm.h"
 #include <stdlib.h>
 
 /*

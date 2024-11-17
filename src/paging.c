@@ -1,7 +1,7 @@
 
-#include "mem.h"
-#include "cpu.h"
-#include "loader.h"
+#include "../include/mem.h"
+#include "../include/cpu.h"
+#include "../include/loader.h"
 #include <stdio.h>
 
 int main() {
@@ -9,6 +9,7 @@ int main() {
 	struct pcb_t * proc = load("input/p0");
 	unsigned int i;
 	for (i = 0; i < proc->code->size; i++) {
+		printf("%d\n", proc->pid);
 		run(proc);
 		run(ld);
 	}

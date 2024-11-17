@@ -1,6 +1,6 @@
 
-#include "queue.h"
-#include "sched.h"
+#include "../include/queue.h"
+#include "../include/sched.h"
 #include <pthread.h>
 
 #include <stdlib.h>

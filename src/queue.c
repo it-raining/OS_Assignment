@@ -2,8 +2,12 @@
 #include <stdlib.h>
 #include "queue.h"
 
-#define TEST_QUEUE
-// gcc -Iinclude -o queue src/queue.c
+// #define TEST_QUEUE
+/* HOW TO TEST
+Uncomment #define TEST_QUEUE before testing
+cd to your Project
+run gcc -Iinclude -o queue src/queue.c
+*/
 
 int empty(struct queue_t *q)
 {

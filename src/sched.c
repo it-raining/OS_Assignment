@@ -5,12 +5,21 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+
 static struct queue_t ready_queue;
 static struct queue_t run_queue;
 static pthread_mutex_t queue_lock;
 
+#define TEST_SCHED
+
+#ifdef TEST_SCHED
+#include "common.h"
+#endif
+// gcc -Iinclude -o sched src/queue.c src/sched.c -lpthread
+
 #ifdef MLQ_SCHED
 static struct queue_t mlq_ready_queue[MAX_PRIO];
+static int slot[MAX_PRIO];
 #endif
 
 int queue_empty(void)
@@ -46,10 +55,6 @@ void init_scheduler(void)
  */
 struct pcb_t *get_mlq_proc(void)
 {
-	struct pcb_t *proc = NULL;
-	/*TODO: get a process from PRIORITY [ready_queue].
-	 * Remember to use lock to protect the queue.
-	 * */
 	struct pcb_t *proc = NULL;
 	/*TODO: get a process from PRIORITY [ready_queue].
 	 * Remember to use lock to protect the queue.
@@ -132,5 +137,12 @@ void add_proc(struct pcb_t *proc)
 	pthread_mutex_lock(&queue_lock);
 	enqueue(&ready_queue, proc);
 	pthread_mutex_unlock(&queue_lock);
+}
+#endif
+
+#ifdef TEST_SCHED
+int main()
+{
+	return 0;
 }
 #endif

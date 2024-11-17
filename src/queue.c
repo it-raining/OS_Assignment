@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include "queue.h"
 
+// #define TEST_QUEUE
+// gcc -Iinclude -o queue src/queue.c
+
 int empty(struct queue_t *q)
 {
         if (q == NULL)
@@ -63,7 +66,9 @@ struct pcb_t *dequeue(struct queue_t *q)
 #endif
 }
 
+#ifdef TEST_QUEUE
 int main()
 {
-        printf("Queue Funciton");
+
 }
+#endif

@@ -160,7 +160,17 @@ int MEMPHY_dump(struct memphy_struct * mp)
     /*TODO dump memphy contnt mp->storage 
      *     for tracing the memory content
      */
-
+    unsigned long int address = 0;
+   printf("------RAM CONTENT------\n");
+   while (address < mp->maxsz) 
+   {
+      if(mp->storage[address])
+      {
+         printf("0x%08lx: %08x\n", address, mp->storage[address]);
+      }
+      address++;
+   }
+   printf("\n");
     return 0;
 }
 

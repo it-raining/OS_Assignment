@@ -97,18 +97,20 @@ int vmap_page_range(
   /* TODO: update the rg_end and rg_start of ret_rg */
   ret_rg->rg_start = addr;
   ret_rg->rg_end = addr + (pgnum * PAGING_PAGESZ);
-  // ret_rg->vmaid = ...
-
-  fpit->fp_next = frames;
+  ret_rg->vmaid = 0;
 
   /* TODO map range of frame to address space
    *      in page table pgd in caller->mm
    */
-
-  /* Tracking for later page replacement activities (if needed)
-   * Enqueue new usage page */
-  enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
-
+  for (; pgit < pgnum; pgit++) {
+    if (fpit == NULL) {
+      return -1; // Error: insufficient frames
+    }
+    uint32_t *pte = &caller->mm->pgd[pgn + pgit];
+    pte_set_fpn(pte, fpit->fpn);
+    fpit = fpit->fp_next;
+    enlist_pgn_node(&caller->mm->fifo_pgn, pgn + pgit);
+  }
   return 0;
 }
 
@@ -160,7 +162,7 @@ int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart,
    *duplicate control mechanism, keep it simple
    */
   ret_alloc = alloc_pages_range(caller, incpgnum, &frm_lst);
-
+  // after above line the frm_list got a SLlist of page to map
   if (ret_alloc < 0 && ret_alloc != -3000)
     return -1;
 
@@ -208,9 +210,14 @@ int __swap_cp_page(struct memphy_struct *mpsrc, int srcfpn,
  */
 int init_mm(struct mm_struct *mm, struct pcb_t *caller) {
   struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
-  struct vm_area_struct *vma1 = malloc(sizeof(struct vm_area_struct));
 
   mm->pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
+  if (!vma0 || !mm->pgd)
+    return -1;
+
+  for (int i = 0; i < PAGING_MAX_PGN; i++) {
+    mm->pgd[i] = 0;
+  }
 
   /* By default the owner comes with at least one vma for DATA */
   vma0->vm_id = 0;
@@ -219,25 +226,26 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller) {
   vma0->sbrk = vma0->vm_start;
   struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end, 0);
   enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
+#ifdef MM_PAGING_HEAP_GODOWN
+  if (!vma1)
+    return -1;
+  struct vm_area_struct *vma1 = malloc(sizeof(struct vm_area_struct));
+  vma1->vm_start = caller->vmemsz;
+  vma1->vm_id = 1;
+  vma1->vm_end = vma1->vm_start;
+  vma1->sbrk = vma1->vm_start;
+  struct vm_rg_struct *heap_rg = init_vm_rg(vma1->vm_start, vma1->vm_end, 1);
+  enlist_vm_rg_node(&vma1->vm_freerg_list, heap_rg);
 
-  /* TODO update VMA0 next */
-  // vma0->next = ...
-
-  /* TODO: update one vma for HEAP */
-  // vma1->vm_id = ...
-  // vma1->vm_start = ...
-  // vma1->vm_end = ...
-  // vma1->sbrk = ...
-  // enlist_vm_rg_node(&vma1...)
-  // vma1->vm_next
-  // enlist_vm_rg_node(&vma1->vm_freerg_list,...)
-
+  vma1->vm_mm = mm;
+  vma0->vm_next = vma1;
+  vma1->vm_next = NULL;
+#endif
   /* Point vma owner backward */
   vma0->vm_mm = mm;
-  vma1->vm_mm = mm;
 
   /* TODO: update mmap */
-  // mm->mmap = ...
+  mm->mmap = vma0;
 
   return 0;
 }

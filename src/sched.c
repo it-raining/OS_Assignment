@@ -38,7 +38,10 @@ void init_scheduler(void)
 #ifdef MLQ_SCHED
 	int i;
 	for (i = 0; i < MAX_PRIO; i++)
+	{	
 		mlq_ready_queue[i].size = 0;
+		slot[i] = MAX_PRIO - i;
+	}
 #endif
 	ready_queue.size = 0;
 	run_queue.size = 0;
@@ -144,11 +147,11 @@ void initProc(struct pcb_t *proc, int prio);
 void printProc(struct pcb_t *proc);
 int main()
 {
-	printf("_______________________BEGIN GET INIT SLOT FOR MLQ QUEUE_______________________\n");
-	get_mlq_proc();
-	printf("\n_______________________BEGIN SET UP QUEUE_______________________\n");
+	printf("_______________________GET INIT FOR SCHEDULER_______________________\n");
+	init_scheduler();
+	printf("\n_______________________SET UP QUEUE_______________________\n");
 	struct pcb_t *procArray = (struct pcb_t *)malloc(2 * sizeof(struct pcb_t));
-	printf("_______________________CREATE 2 PROC WITH PRIO FROM 137 TO 139_______________________\n");
+	printf("___________CREATE 2 PROC WITH PRIO FROM 137 TO 139_______________________\n");
 	initProc(&procArray[0], 137);
 	initProc(&procArray[1], 139);
 	printf("_______________________ADD 10 PROC WITH PRIO FROM 137 TO 139 TO QUEUE_______________________\n");

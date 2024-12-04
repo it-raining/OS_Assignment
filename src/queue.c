@@ -44,6 +44,8 @@ struct pcb_t *dequeue(struct queue_t *q)
         }
         struct pcb_t *temp = q->proc[0];
 #ifdef MLQ_SCHED
+        // Element in queue have the same prioprity
+        // So that, just pop the first element in queue.
         int length = q->size - 1;
         for (int i = 0; i < length; ++i)
         {
@@ -53,6 +55,7 @@ struct pcb_t *dequeue(struct queue_t *q)
         q->size--;
         return temp;
 #else
+        // Compare priority and pop the element which has prioprity smallest
         int index = 0;
         int length = q->size;
         for (int i = 1; i < length; ++i)

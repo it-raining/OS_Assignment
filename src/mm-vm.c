@@ -73,15 +73,14 @@ struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid) {
  *@alloc_addr: address of allocated memory region
  *
  */
-int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size,
-            int *alloc_addr) {
-  /*Allocate at the toproof */
+int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr) {
+  if(size <= 0)
+    return -1;
+  /*Khởi tạo một cấu trúc vùng nhớ*/
   struct vm_rg_struct rgnode;
-
-  /* TODO: commit the vmaid */
-  // rgnode.vmaid
-
-  if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0) {
+  rgnode.vmaid = vmaid;                                       /* TODO: commit the vmaid */
+/* get_free_vmrg_area SUCCESS */  
+  if (get_free_vmrg_area(caller, vmaid, size, &rgnode) == 0) { // Tìm không gian vùng nhớ trống có kích thước size
     caller->mm->symrgtbl[rgid].rg_start = rgnode.rg_start;
     caller->mm->symrgtbl[rgid].rg_end = rgnode.rg_end;
 
@@ -92,31 +91,43 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size,
     return 0;
   }
 
-  /* TODO: get_free_vmrg_area FAILED handle the region management (Fig.6)*/
+/* get_free_vmrg_area FAILED handle the region management (Fig.6)*/
 
   /* TODO retrive current vma if needed, current comment out due to compiler
    * redundant warning*/
   /*Attempt to increate limit to get space */
-  // struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
-
-  int inc_sz =
-      PAGING_PAGE_ALIGNSZ(size); // wrapup smallest page can containt size
-  int inc_limit_ret;
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid); // Lấy vùng nhớ hiện tại 
+  int inc_sz = PAGING_PAGE_ALIGNSZ(size);                             //Tính kích thước cần mở rộng thê, 
+  int inc_limit_ret;                                             // Lưu trữ kết quả tăng giưới hạn
 
   /* TODO retrive old_sbrk if needed, current comment out due to compiler
    * redundant warning*/
-  // int old_sbrk = cur_vma->sbrk;
+  int old_sbrk = cur_vma->sbrk;                                       // sbrk cũ của VMA
 
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
-  inc_vma_limit(caller, vmaid, inc_sz, &inc_limit_ret);
+   /*FAILED increase limit */
+  if (inc_vma_limit(caller, vmaid, inc_sz, &inc_limit_ret) < 0){       // Moở rộng giưới hạn VMA
+    printf("Increase the vma_limit failed ! \n");
+    return -1;
+  }
+  /*SUCCESSFUL increase limit */
 
-  /* TODO: commit the limit increment */
+    /* TODO: commit the limit increment */
+  unsigned long new_sbrk = old_sbrk + size;
+  if(new_sbrk < cur_vma->vm_end){
+    struct vm_rg_struct *new_free_rg = init_vm_rg(new_sbrk, cur_vma->vm_end, vmaid); //init_vm_rg : cấp phát mọt vùng nhớ trống (mm.c)
+    enlist_vm_freerg_list(caller->mm, *new_free_rg);                                 //enlist_vm_freerg_list: add new rg to freerg_list
 
-  /* TODO: commit the allocation address
-  // *alloc_addr = ...
-  */
+  }
+    /* TODO: commit the allocation address
+    // *alloc_addr = ...
+   */
+  caller->mm->symrgtbl[rgid].rg_start = old_sbrk; 
+  caller->mm->symrgtbl[rgid].rg_end = new_sbrk; 
+  caller->mm->symrgtbl[rgid].vmaid = vmaid; 
+  *alloc_addr = old_sbrk;
 
   return 0;
 }
@@ -134,17 +145,30 @@ int __free(struct pcb_t *caller, int rgid) {
   // Dummy initialization for avoding compiler dummay warning
   // in incompleted TODO code rgnode will overwrite through implementing
   // the manipulation of rgid later
-  rgnode.vmaid = 0; // dummy initialization
-  rgnode.vmaid = 1; // dummy initialization
-
-  if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
+  //rgnode.vmaid = 0; // dummy initialization
+  //rgnode.vmaid = 1; // dummy initialization
+/*Kiểm tra tính hợp lệ của đầu vào*/
+  if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ){
+    printf("ERROR: invalid region ID.\n");
     return -1;
-
+  }
+  if(!caller || !(caller->mm)){
+    printf("ERROR: invalid PCB or memory management structure.");
+    return -1;
+  }
   /* TODO: Manage the collect freed region to freerg_list */
-
+  // Đảm bảo region tồn tại để remove
+  struct vm_rg_struct *sym_rg = &(caller->mm->symrgtbl[rgid]);
+  if (!sym_rg) {
+      printf("ERROR: Region ID %d is not allocated.\n", rgid);
+      return -1;
+  }
+  rgnode = *sym_rg;
   /*enlist the obsoleted memory region */
-  enlist_vm_freerg_list(caller->mm, rgnode);
-
+  if(enlist_vm_freerg_list(caller->mm, rgnode) < 0){
+    printf("ERROR: Failed to enlist the free region.\n ");
+    return -1;
+  }
   return 0;
 }
 

@@ -124,19 +124,49 @@ int vmap_page_range(
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum,
                       struct framephy_struct **frm_lst) {
   int pgit, fpn;
-  // struct framephy_struct *newfp_str;
-
+  if(req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ))
+    return -1;
   /* TODO: allocate the page
   //caller-> ...
   //frm_lst-> ...
   */
+  struct framephy_struct *newfp_str, *tail = NULL;
+
   for (pgit = 0; pgit < req_pgnum; pgit++) {
     if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {
-
-    } else { // ERROR CODE of obtaining somes but not enough frames
+      newfp_str = malloc(sizeof(struct framephy_struct));
+      if(!newfp_str)
+        return -1;
+      newfp_str->owner = caller->mm;
+      newfp_str->fpn = fpn;
+      newfp_str->fp_next = NULL;
+      newfp_str->in_RAM = 1;
+      if(pgit == 0){// Đây là khung trang đầu tiên
+        (*frm_lst) = newfp_str;
+      }else{// Thêm vào cuối
+        tail->fp_next = newfp_str;
+        tail = newfp_str;
+      }
+    // ERROR CODE of obtaining somes but not enough frames
+    } else if(MEMPHY_get_freefp(caller->active_mswp, &fpn) == 0) { 
+      newfp_str = malloc(sizeof(struct framephy_struct));
+      if(!newfp_str)
+          return -1;
+      newfp_str->owner = caller->mm;
+      newfp_str->fpn = fpn;
+      newfp_str->fp_next = NULL;
+      newfp_str->in_RAM = 0;
+      if(pgit == 0){// Đây là khung trang đầu tiên
+          (*frm_lst) = newfp_str;
+      }else{// Thêm vào cuối
+          tail->fp_next = newfp_str;
+          tail = newfp_str;
+      }
+    /* Out of memory */
+    }else{
+      return -3000;
     }
   }
-
   return 0;
 }
 

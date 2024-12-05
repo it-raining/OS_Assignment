@@ -69,6 +69,9 @@ struct framephy_struct {
 
   /* Resereed for tracking allocated framed */
   struct mm_struct *owner;
+
+  /* In RAM or not */
+   int in_RAM;
 };
 
 struct memphy_struct {

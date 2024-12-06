@@ -179,6 +179,9 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum,
  * @incpgnum  : number of mapped page
  * @ret_rg    : returned region
  */
+/*
+  Anhs xạ bộ nhớ ảo vào bộ nhớ vật lý.
+*/
 int vm_map_ram(struct pcb_t *caller, int astart, int aend, int mapstart,
                int incpgnum, struct vm_rg_struct *ret_rg) {
   struct framephy_struct *frm_lst = NULL;

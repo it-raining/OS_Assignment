@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "../include/queue.h"
 
-// #define TEST_QUEUE
+#define TEST_QUEUE
 /* HOW TO TEST
 Uncomment #define TEST_QUEUE before testing
 cd to your Project
@@ -91,7 +91,7 @@ int main()
         q = (struct queue_t *)malloc(sizeof(struct queue_t));
         if (q != NULL)
                 printf("Allocate memory for Queue\n");
-
+        q->size = 0;
         printf("Add Proc to Queue.\n");
         enqueue(q, proc);
         if (empty(q) == 0)

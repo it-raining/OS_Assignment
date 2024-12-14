@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include "../include/queue.h"
 
-#define TEST_QUEUE
+// #define TEST_QUEUE
 /* HOW TO TEST
 Uncomment #define TEST_QUEUE before testing
 cd to your Project

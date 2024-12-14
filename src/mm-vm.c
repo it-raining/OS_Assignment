@@ -225,7 +225,6 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller) {
 
   if (!PAGING_PTE_PAGE_PRESENT(
           pte)) { /* Page is not online, make it actively living */
-    int vicpgn, swpfpn;
     int vicpgn, swpfpn, vicfpn;
     // int vicfpn;
     // uint32_t vicpte;
@@ -250,7 +249,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller) {
     }
     __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
     __swap_cp_page(caller->active_mswp, tgtfpn, caller->mram, vicfpn);
-    pte_set_swap(&(mm->pgd[swpfpn]), PAGING_PAGE_SWAPPED(pte),
+    pte_set_swap(&(mm->pgd[swpfpn]), PAGING_PTE_SWP(pte),
                  PAGING_PTE_SWP(pte));
 
     /* Do swap frame from MEMRAM to MEMSWP and vice versa*/

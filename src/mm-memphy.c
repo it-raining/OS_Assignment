@@ -171,7 +171,7 @@ int MEMPHY_dump(struct memphy_struct * mp)
       address++;
    }
    printf("\n");
-    return 0;
+   return 0;
 }
 
 int MEMPHY_put_freefp(struct memphy_struct *mp, int fpn)

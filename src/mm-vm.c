@@ -254,7 +254,7 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller) {
     else if (pte & PAGING_PTE_SWAPPED_MASK) {
         // The page is swapped, so bring it back into memory
         int vicpgn, swpfpn;
-        int tgtfpn = PAGING_SWP(pte); // The target frame storing our swapped page
+        int tgtfpn = PAGING_FPN(pte); // The target frame storing our swapped page
 
         // Find a victim page to swap out if necessary
         if (find_victim_page(caller->mm, &vicpgn) != 0) {

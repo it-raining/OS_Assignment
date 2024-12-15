@@ -120,53 +120,53 @@ int vmap_page_range(
  * @req_pgnum : request page num
  * @frm_lst   : frame list
  */
-
+/*Cấp phát một req_num trang cho pc và liên kết chúng vào khung trang vật lý */
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum,
                       struct framephy_struct **frm_lst) {
-  int pgit, fpn;
-  if(req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ))
+  int pgit, fpn;// fpn: số khung trang
+  if(req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ))// kích thước tối đa của bộ nhớ
     return -1;
   /* TODO: allocate the page
   //caller-> ...
   //frm_lst-> ...
   */
-  struct framephy_struct *newfp_str, *tail = NULL;
+  struct framephy_struct *tail = NULL;
 
-  for (pgit = 0; pgit < req_pgnum; pgit++) {
-    if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {
-      newfp_str = malloc(sizeof(struct framephy_struct));
-      if(!newfp_str)
-        return -1;
-      newfp_str->owner = caller->mm;
-      newfp_str->fpn = fpn;
-      newfp_str->fp_next = NULL;
-      newfp_str->in_RAM = 1;
-      if(pgit == 0){// Đây là khung trang đầu tiên
-        (*frm_lst) = newfp_str;
-      }else{// Thêm vào cuối
-        tail->fp_next = newfp_str;
-        tail = newfp_str;
-      }
-    // ERROR CODE of obtaining somes but not enough frames
-    } else if(MEMPHY_get_freefp(caller->active_mswp, &fpn) == 0) { 
-      newfp_str = malloc(sizeof(struct framephy_struct));
-      if(!newfp_str)
-          return -1;
-      newfp_str->owner = caller->mm;
-      newfp_str->fpn = fpn;
-      newfp_str->fp_next = NULL;
-      newfp_str->in_RAM = 0;
-      if(pgit == 0){// Đây là khung trang đầu tiên
-          (*frm_lst) = newfp_str;
-      }else{// Thêm vào cuối
-          tail->fp_next = newfp_str;
-          tail = newfp_str;
-      }
-    /* Out of memory */
-    }else{
-      return -3000;
+  //Vong lap qua tung trang yeu cau
+    for (pgit = 0; pgit < req_pgnum; pgit++) {
+        struct framephy_struct *new_fp = malloc(sizeof(struct framephy_struct));
+        if (!new_fp) 
+            return -1;
+        
+        //Cap phat mot khung trang trong tu ram
+        if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {
+            new_fp->fpn = fpn;
+            new_fp->in_RAM = 1; // Khung này trong RAM
+        } else if (MEMPHY_get_freefp(caller->active_mswp, &fpn) == 0) { // Neu khong co khung trang trong tu RAM, vao vungf swap
+            new_fp->fpn = fpn;
+            new_fp->in_RAM = 0; // Khung này trong SWAP
+        } else {
+            // Neu khong du bo nho, giai phong toan bo du lieu da cap phat trc do
+            while (*frm_lst) {
+                struct framephy_struct *temp = (*frm_lst)->fp_next;
+                free(*frm_lst);
+                *frm_lst = temp;
+            }
+            free(new_fp);
+            return -3000; // Out of memory
+        }
+
+        // Lien ket khung trang vao danh sach
+        new_fp->owner = caller->mm;
+        new_fp->fp_next = NULL;
+
+        if (pgit == 0) {  // Nếu là khung đầu tiên
+            *frm_lst = new_fp;
+        } else {          // Thêm vào cuối danh sách
+            tail->fp_next = new_fp;
+        }
+        tail = new_fp;
     }
-  }
   return 0;
 }
 
@@ -242,10 +242,50 @@ int __swap_cp_page(struct memphy_struct *mpsrc, int srcfpn,
  * @caller: mm owner
  */
 int init_mm(struct mm_struct *mm, struct pcb_t *caller) {
-  struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
+//   struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
 
+//   mm->pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
+//   if (!vma0 || !mm->pgd)
+//     return -1;
+
+//   for (int i = 0; i < PAGING_MAX_PGN; i++) {
+//     mm->pgd[i] = 0;
+//   }
+
+//   /* By default the owner comes with at least one vma for DATA */
+//   vma0->vm_id = 0;
+//   vma0->vm_start = 0;
+//   vma0->vm_end = vma0->vm_start;
+//   vma0->sbrk = vma0->vm_start;
+//   struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end, 0);
+//   enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
+// #ifdef MM_PAGING_HEAP_GODOWN
+//   struct vm_area_struct *vma1 = malloc(sizeof(struct vm_area_struct));
+//   if (!vma1)
+//     return -1;
+//   vma1->vm_start = caller->vmemsz;
+//   vma1->vm_id = 1;
+//   vma1->vm_end = vma1->vm_start;
+//   vma1->sbrk = vma1->vm_start;
+//   struct vm_rg_struct *heap_rg = init_vm_rg(vma1->vm_start, vma1->vm_end, 1);
+//   enlist_vm_rg_node(&vma1->vm_freerg_list, heap_rg);
+
+//   vma1->vm_mm = mm;
+//   vma0->vm_next = vma1;
+//   vma1->vm_next = NULL;
+// #endif
+//   /* Point vma owner backward */
+//   vma0->vm_mm = mm;
+
+//   /* TODO: update mmap */
+//   mm->mmap = vma0;
+  /*Khởi tạo hai vùng nhớ*/
+  struct vm_area_struct *vma0 = malloc(sizeof(struct vm_area_struct));
+  struct vm_area_struct *vma1 = malloc(sizeof(struct vm_area_struct));
+  /*Khởi tạo bảng trang*/
   mm->pgd = malloc(PAGING_MAX_PGN * sizeof(uint32_t));
-  if (!vma0 || !mm->pgd)
+
+  if (!vma0 || !mm->pgd || !vma1)
     return -1;
 
   for (int i = 0; i < PAGING_MAX_PGN; i++) {
@@ -257,29 +297,32 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller) {
   vma0->vm_start = 0;
   vma0->vm_end = vma0->vm_start;
   vma0->sbrk = vma0->vm_start;
+  /*Khởi tạo và thêm vùng nhớ tự  dođầu vào VMA0*/
   struct vm_rg_struct *first_rg = init_vm_rg(vma0->vm_start, vma0->vm_end, 0);
   enlist_vm_rg_node(&vma0->vm_freerg_list, first_rg);
-#ifdef MM_PAGING_HEAP_GODOWN
-  if (!vma1)
-    return -1;
-  struct vm_area_struct *vma1 = malloc(sizeof(struct vm_area_struct));
-  vma1->vm_start = caller->vmemsz;
+
+  /*Thiết lập cho heap-VMA1*/
   vma1->vm_id = 1;
+  vma1->vm_start = caller->vmemsz;
   vma1->vm_end = vma1->vm_start;
   vma1->sbrk = vma1->vm_start;
+  /*Khởi tạo và thêm vùng nhớ tự  dođầu vào VMA1*/
   struct vm_rg_struct *heap_rg = init_vm_rg(vma1->vm_start, vma1->vm_end, 1);
   enlist_vm_rg_node(&vma1->vm_freerg_list, heap_rg);
 
-  vma1->vm_mm = mm;
+  /*Liên kết VMA1 và VMA0*/
   vma0->vm_next = vma1;
   vma1->vm_next = NULL;
-#endif
+
   /* Point vma owner backward */
   vma0->vm_mm = mm;
+  vma1->vm_mm = mm;
 
   /* TODO: update mmap */
   mm->mmap = vma0;
-
+  
+ /* Thiết lập danh sách trang trống */
+  mm->fifo_pgn = NULL;
   return 0;
 }
 

@@ -1,9 +1,9 @@
 
-#include "../include/cpu.h"
-#include "../include/timer.h"
-#include "../include/sched.h"
-#include "../include/loader.h"
-#include "../include/mm.h"
+#include "cpu.h"
+#include "timer.h"
+#include "sched.h"
+#include "loader.h"
+#include "mm.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -168,7 +168,7 @@ static void read_config(const char * path) {
 	for(sit = 1; sit < PAGING_MAX_MMSWP; sit++)
 		memswpsz[sit] = 0;
 #ifdef MM_PAGING_HEAP_GODOWN
-	vmemsz = 0x300000
+	vmemsz = 0x300000;
 #endif
 #else
 	/* Read input config of memory size: MEMRAM and upto 4 MEMSWP (mem swap)
@@ -178,7 +178,7 @@ static void read_config(const char * path) {
 	fscanf(file, "%d\n", &memramsz);
 	for(sit = 0; sit < PAGING_MAX_MMSWP; sit++)
 		fscanf(file, "%d", &(memswpsz[sit])); 
-#ifdef MM_PAGIMG_HEAP_GODOWN
+#ifdef MM_PAGING_HEAP_GODOWN
 	fscanf(file, "%d\n", &vmemsz);
 #endif
 
@@ -285,6 +285,3 @@ int main(int argc, char * argv[]) {
 	return 0;
 
 }
-
-
-

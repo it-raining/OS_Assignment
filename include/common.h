@@ -19,6 +19,8 @@
 #define SECOND_LV_LEN	5
 #define SEGMENT_LEN     FIRST_LV_LEN
 #define PAGE_LEN        SECOND_LV_LEN
+#define FAIL -1
+#define SUCCESS 0
 
 #define NUM_PAGES	(1 << (ADDRESS_SIZE - OFFSET_LEN))
 #define PAGE_SIZE	(1 << OFFSET_LEN)

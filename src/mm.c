@@ -111,9 +111,6 @@ int vmap_page_range(struct pcb_t *caller,
   return 0;
 }
 
-
-
-
 /* 
  * alloc_pages_range - allocate req_pgnum of frame in ram
  * @caller    : caller
@@ -123,7 +120,7 @@ int vmap_page_range(struct pcb_t *caller,
 
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
-    int pgit, fpn;// fpn: số khung trang
+  int pgit, fpn;// fpn: số khung trang
   if(req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ))// kích thước tối đa của bộ nhớ
     return -1;
   /* TODO: allocate the page
@@ -166,11 +163,10 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
             tail->fp_next = new_fp;
         }
         tail = new_fp;
+
     }
   return 0;
 }
-
-
 
 
 /* 

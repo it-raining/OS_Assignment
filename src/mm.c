@@ -49,6 +49,10 @@ int init_pte(uint32_t *pte,
  * @swptyp : swap type
  * @swpoff : swap offset
  */
+/*
+   cập nhật một Page Table Entry (PTE) để đánh dấu trang là đã bị swap 
+   và lưu trữ thông tin về loại swap và vị trí (offset) trong vùng swap.
+*/
 int pte_set_swap(uint32_t *pte, int swptyp, int swpoff)
 {
   SETBIT(*pte, PAGING_PTE_PRESENT_MASK);
@@ -117,57 +121,79 @@ int vmap_page_range(struct pcb_t *caller,
  * @req_pgnum : request page num
  * @frm_lst   : frame list
  */
-
+/*
+    Chức năng: Cấp phát req_pgnum khung trang cho một tiến trình 
+              req_num: số khung trang cần cấp phát
+              frm_lst: danh sách các khung trang đã cấp phát
+*/
 int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struct** frm_lst)
 {
-  int pgit, fpn;// fpn: số khung trang
-  if(req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ))// kích thước tối đa của bộ nhớ
-    return -1;
-  /* TODO: allocate the page
-  //caller-> ...
-  //frm_lst-> ...
-  */
-  struct framephy_struct *tail = NULL;
-
-  //Vong lap qua tung trang yeu cau
-    for (pgit = 0; pgit < req_pgnum; pgit++) {
-        struct framephy_struct *new_fp = malloc(sizeof(struct framephy_struct));
-        if (!new_fp) 
-            return -1;
-        
-        //Cap phat mot khung trang trong tu ram
-        if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {
-            new_fp->fpn = fpn;
-            new_fp->in_RAM = 1; // Khung này trong RAM
-        } else if (MEMPHY_get_freefp(caller->active_mswp, &fpn) == 0) { // Neu khong co khung trang trong tu RAM, vao vungf swap
-            new_fp->fpn = fpn;
-            new_fp->in_RAM = 0; // Khung này trong SWAP
-        } else {
-            // Neu khong du bo nho, giai phong toan bo du lieu da cap phat trc do
-            while (*frm_lst) {
-                struct framephy_struct *temp = (*frm_lst)->fp_next;
-                free(*frm_lst);
-                *frm_lst = temp;
-            }
-            free(new_fp);
-            return -3000; // Out of memory
-        }
-
-        // Lien ket khung trang vao danh sach
-        new_fp->owner = caller->mm;
-        new_fp->fp_next = NULL;
-
-        if (pgit == 0) {  // Nếu là khung đầu tiên
-            *frm_lst = new_fp;
-        } else {          // Thêm vào cuối danh sách
-            tail->fp_next = new_fp;
-        }
-        tail = new_fp;
-
+    int pgit, fpn;
+    struct framephy_struct *newfp_str;
+    if (req_pgnum > (caller->mram->maxsz / PAGING_PAGESZ)) {// maxsz: kích thước tối đa của bộ nhớ
+        return -1;  
     }
-  return 0;
-}
 
+    for (pgit = 0; pgit < req_pgnum; pgit++) {
+        if (MEMPHY_get_freefp(caller->mram, &fpn) == 0) {// Cấp pahst từ bộ nhớ RAM
+            newfp_str = (struct framephy_struct *)malloc(sizeof(struct framephy_struct));
+        
+            newfp_str->fpn = fpn;
+            newfp_str->owner = caller->mm;
+
+            // Thêm khung trang vào danh sách các khung đã cấp phát
+            if(*frm_lst == NULL){
+                *frm_lst = newfp_str;
+            } else {
+                newfp_str->fp_next = *frm_lst;
+                *frm_lst = newfp_str;
+            }
+        } else {// Nếu không có khung trong RAM, tiến hành swap vào vùng MEMSWP 
+            /*Thông tin trang sẽ bị swap*/
+            int victim_fpn;  //số khung trang vật lý
+            int victim_pgn;  // Số trang 
+            int victim_pte;  // Page Table Entry (thông tin về trang trong bảng trang của tiến trình)
+            int swpfpn = -1; // số khung trong vùng swap mà sẽ nhận dữ liệu từ victim_page
+
+            // Tìm victim_page để swap ra vùng swap
+            if (find_victim_page(caller->mm, &victim_pgn) < 0) {
+                return -3000;  
+            }
+
+            // Lấy PTE và FPN của trang nạn nhân
+            victim_pte = caller->mm->pgd[victim_pgn];
+            victim_fpn = PAGING_FPN(victim_pte);
+
+            // Cấp phát khung trang mới cho swap
+            newfp_str = (struct framephy_struct *)malloc(sizeof(struct framephy_struct));
+
+            newfp_str->fpn = victim_fpn;
+            newfp_str->owner = caller->mm;
+
+            // Thêm khung trang vào danh sách các khung đã cấp phát
+            if(*frm_lst == NULL){
+                *frm_lst = newfp_str;
+            } else {
+                newfp_str->fp_next = *frm_lst;
+                *frm_lst = newfp_str;
+            }
+
+            // Tiến hành swap trang từ RAM sang vùng swap
+            uint32_t pte = caller->mm->pgd[victim_pgn];
+            if (MEMPHY_get_freefp(caller->active_mswp, &swpfpn) == 0) {// Nếu có khung trống trong swap
+                //__swap_cp_page(): sao chép dữ liệu từ khung trang trong RAM (victim_fpn) sang khung trang trong vùng swap (swpfpn)
+                __swap_cp_page(caller->mram, victim_fpn, caller->active_mswp, swpfpn);
+                pte_set_swap(&pte, 0, swpfpn);                        // lưu trữ thông tin của khung swap vào PTE
+                caller->mm->pgd[victim_pgn] = pte;                    // thay thế PTE cũ với PTE mới đã được cập nhật thông tin swap
+            } else { // Nếu không có khung trống trong ram + swap
+                /*Out of memeory*/
+                return -3000;  
+            }
+        }
+    }
+
+    return 0; 
+}
 
 /* 
  * vm_map_ram - do the mapping all vm are to ram storage device

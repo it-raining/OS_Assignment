@@ -15,8 +15,8 @@
  *@rg_elmt: new region
  *
  */
-int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt) {
-  struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list;
+int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct* rg_elmt) {
+  struct vm_rg_struct *rg_node;
 
   if (rg_elmt.rg_start >= rg_elmt.rg_end)
     return -1;
@@ -122,9 +122,8 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size,
   /* TODO: commit the limit increment */
   unsigned long new_sbrk = old_sbrk + size;
   if (new_sbrk < cur_vma->vm_end) {
-    struct vm_rg_struct *new_free_rg =
-      init_vm_rg(new_sbrk, cur_vma->vm_end, vmaid);                 // init_vm_rg : cấp phát mọt vùng nhớ trống (mm.c)
-      enlist_vm_freerg_list(caller->mm, *new_free_rg);              // enlist_vm_freerg_list: add new rg to freerg_list
+    struct vm_rg_struct *new_free_rg = init_vm_rg(new_sbrk, cur_vma->vm_end, vmaid);// init_vm_rg : cấp phát mọt vùng nhớ trống (mm.c)
+    enlist_vm_freerg_list(caller->mm, *new_free_rg);                                // enlist_vm_freerg_list: add new rg to freerg_list
   }
   /* TODO: commit the allocation address
   // *alloc_addr = ...
@@ -481,6 +480,7 @@ struct vm_rg_struct* get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, in
  *@vmaend: vma end
  *
  */
+/*Vùng nhớ ảo mới có bị chồng lấn với các vùng nhớ ảo có trong hệ thống hay không */
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend)
 {
   struct vm_area_struct *vma = caller->mm->mmap;
@@ -488,8 +488,8 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
   /* TODO validate the planned memory area is not overlapped */
   while(vma){
     if(vma->vm_id  != vmaid && vma->vm_start < vmaend && vma->vm_end > vmastart)
-    return -1;
-    else vma=vma->vm_next;
+      return -1;
+    else vma = vma->vm_next;
   }
   /* END TODO*/
 
@@ -503,10 +503,13 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
  *@inc_limit_ret: increment limit return
  *
  */
+/*
+    Mở rộng giới hạn vùng địa chỉ ảo (Virtual Memory Area - VMA)
+*/
 int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz,
                   int *inc_limit_ret) {
   struct vm_rg_struct *newrg = malloc(sizeof(struct vm_rg_struct));
-  int inc_amt = PAGING_PAGE_ALIGNSZ(inc_sz);
+  int inc_amt = PAGING_PAGE_ALIGNSZ(inc_sz);                        // Kích thước vùng nhớ mới cần cấp phát
   int incnumpage = inc_amt / PAGING_PAGESZ;
   struct vm_rg_struct *area =
       get_vm_area_node_at_brk(caller, vmaid, inc_sz, inc_amt);
@@ -521,7 +524,6 @@ int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz,
     return -1; /*Overlap and failed allocation */
   }
   
-
 // #ifdef MM_PAGING_HEAP_GODOWN
 //   if (cur_vma->vm_id == 1) {
 //     cur_vma->sbrk -= inc_sz;
@@ -584,7 +586,7 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
     while (pre->pg_next->pg_next) {
       pre = pre->pg_next;
       pg = pg->pg_next;
-      }
+    }
 
     pg = pg->pg_next;
     pre->pg_next = NULL;

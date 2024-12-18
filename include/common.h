@@ -57,7 +57,7 @@ struct trans_table_t {
 };
 
 /* Mapping virtual addresses and physical ones */
-struct page_table_t {
+struct   page_table_t {
 	/* Translation table for the first layer */
 	struct {
 		addr_t v_index;	// Virtual index

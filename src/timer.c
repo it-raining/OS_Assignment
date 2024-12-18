@@ -14,7 +14,7 @@ static struct timer_id_container_t * dev_list = NULL;
 
 static uint64_t _time;
 
-static int timer_started = 0;
+static int timer_started = 0;     // Bộ định thời bắt đầu
 static int timer_stop = 0;
 
 
@@ -91,29 +91,32 @@ void detach_event(struct timer_id_t * event) {
 	pthread_cond_signal(&event->event_cond);
 	pthread_mutex_unlock(&event->event_lock);
 }
-
 struct timer_id_t * attach_event() {
-	if (timer_started) {
+	if (timer_started) { // Kiểm tra bộ định thời có đang chạy hay không
 		return NULL;
 	}else{
 		struct timer_id_container_t * container =
 			(struct timer_id_container_t*)malloc(
 				sizeof(struct timer_id_container_t)		
 			);
-		container->id.done = 0;
-		container->id.fsh = 0;
+		/*LIÊN QUAN ĐẾN ĐỒNG BỘ HÓA*/
+		container->id.done = 0;			// Chưa hoàn thành
+		container->id.fsh = 0;			// Chưa hoàn thành 
+
 		pthread_cond_init(&container->id.event_cond, NULL);
 		pthread_mutex_init(&container->id.event_lock, NULL);
+
 		pthread_cond_init(&container->id.timer_cond, NULL);
 		pthread_mutex_init(&container->id.timer_lock, NULL);
+		/*Thêm event vòa sự kiện đang chờ*/
 		if (dev_list == NULL) {
 			dev_list = container;
 			dev_list->next = NULL;
-		}else{
+		}else{// Chèn vào đầu danh sách
 			container->next = dev_list;
 			dev_list = container;
 		}
-		return &(container->id);
+		return &(container->id); // Trả về con trỏ đến ID của cấu trúc container
 	}
 }
 

@@ -33,19 +33,20 @@ int queue_empty(void)
 	return (empty(&ready_queue) && empty(&run_queue));
 }
 
+/*Tạo cấu trúc dữ liệu cho bộ lập lịch*/
 void init_scheduler(void)
 {
 #ifdef MLQ_SCHED
 	int i;
 	for (i = 0; i < MAX_PRIO; i++)
 	{	
-		mlq_ready_queue[i].size = 0;
-		slot[i] = MAX_PRIO - i;
+		mlq_ready_queue[i].size = 0;			// Mảng hàng đợi (Mức độ ưu tiên khác nhau) .size() = 0: ban đầu không có tiến trình nào trong hàng đợi 
+		slot[i] = MAX_PRIO - i;					// Mảng gán giá trị mức độ ưu tiên.
 	}
 #endif
-	ready_queue.size = 0;
-	run_queue.size = 0;
-	pthread_mutex_init(&queue_lock, NULL);
+	ready_queue.size = 0;						// Hàng đợi chứa tiến trình sẵn sàng để thực thi
+	run_queue.size = 0;							// hàng đợi chứa tiến trình hiện tại đang chạy
+	pthread_mutex_init(&queue_lock, NULL);		// Khóa đồng bọ cho các hàng đợi
 }
 
 #ifdef MLQ_SCHED

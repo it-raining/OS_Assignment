@@ -15,20 +15,62 @@
  *@rg_elmt: new region
  *
  */
-int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct rg_elmt) {
-  struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list;
-
-  if (rg_elmt.rg_start >= rg_elmt.rg_end)
-    return -1;
+int enlist_vm_freerg_list(struct mm_struct *mm, struct vm_rg_struct *rg_elmt)
+{
+// struct vm_rg_struct *rg_node = mm->mmap->vm_freerg_list; 
+  struct vm_rg_struct *rg_node;
+  if(rg_elmt->vmaid == 0)
+    rg_node = mm->mmap->vm_freerg_list;
+  else if(rg_elmt->vmaid == 1)
+    rg_node = mm->mmap->vm_next->vm_freerg_list;
+  
+#ifdef MM_PAGIMG_HEAP_GODOWN
+  if(rg_elmt->vmaid == 0)
+    if (rg_elmt->rg_start >= rg_elmt->rg_end)
+      return -1; 
+  if(rg_elmt->vmaid == 1) // HEAP
+    if (rg_elmt->rg_start <= rg_elmt->rg_end){
+      return -1; 
+    }
+    
+#else
+   if (rg_elmt->rg_start >= rg_elmt->rg_end)
+    return -1; 
+#endif
+  //when enlist a rg continous to another rg, should merge those 2
+  // struct vm_rg_struct *rgit = mm->mmap->vm_freerg_list;
+  struct vm_rg_struct *rgit;
+  if(rg_elmt->vmaid == 0)
+    rgit = mm->mmap->vm_freerg_list;
+  else if(rg_elmt->vmaid == 1)
+    rgit = mm->mmap->vm_next->vm_freerg_list;
+  while(rgit!= NULL){
+    if(rgit->rg_start != rgit->rg_end){
+      if(rgit->rg_start == rg_elmt->rg_end){
+        rgit->rg_start = rg_elmt->rg_start;
+        return 0;
+      }
+      else if(rgit->rg_end == rg_elmt->rg_start){
+        rgit->rg_end = rg_elmt->rg_end;
+        return 0;
+      }
+    }
+    rgit = rgit->rg_next;
+  }
 
   if (rg_node != NULL)
-    rg_elmt.rg_next = rg_node;
+    rg_elmt->rg_next = rg_node;
 
   /* Enlist the new region */
-  mm->mmap->vm_freerg_list = &rg_elmt;
-
+  // mm->mmap->vm_freerg_list = rg_elmt;
+  
+  if(rg_elmt->vmaid == 0)
+    mm->mmap->vm_freerg_list = rg_elmt;
+  else if(rg_elmt->vmaid == 1)
+    mm->mmap->vm_next->vm_freerg_list = rg_elmt;  
   return 0;
 }
+
 
 /*get_vma_by_num - get vm area by numID
  *@mm: memory region
@@ -201,8 +243,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size,
  *
  */
 int __free(struct pcb_t *caller, int rgid) {
-  struct vm_rg_struct rgnode;
-
+  struct vm_rg_struct *rgnode = malloc(sizeof(struct vm_rg_struct));
   // Dummy initialization for avoding compiler dummay warning
   // in incompleted TODO code rgnode will overwrite through implementing
   // the manipulation of rgid later
@@ -218,17 +259,20 @@ int __free(struct pcb_t *caller, int rgid) {
     return -1;
   }
   /* TODO: Manage the collect freed region to freerg_list */
-  // Đảm bảo region tồn tại để remove
-  struct vm_rg_struct *sym_rg = &(caller->mm->symrgtbl[rgid]);
-  if (!sym_rg) {
-    printf("ERROR: Region ID %d is not allocated.\n", rgid);
+  /*Lấy thông tin vùng nhớ từ bảng trang*/
+  rgnode->vmaid = caller->mm->symrgtbl[rgid].vmaid;
+  rgnode->rg_start = caller->mm->symrgtbl[rgid].rg_start;
+  rgnode->rg_end = caller->mm->symrgtbl[rgid].rg_end;
+  /*Kiểm tra vùng nhớ đã được cấp phát hay chưa*/
+  if(rgnode->rg_start == -1 || rgnode->rg_end == -1){
     return -1;
   }
-  rgnode.rg_start = sym_rg->rg_start;
-  rgnode.rg_end = sym_rg->rg_end;
-
+  /*Đặt lạo thông tin vùng nhớ lên bảng trang*/
+  caller->mm->symrgtbl[rgid].rg_start = -1;
+  caller->mm->symrgtbl[rgid].rg_end = -1;
+  caller->mm->symrgtbl[rgid].vmaid = -1;
   /*enlist the obsoleted memory region */
-  if (enlist_vm_freerg_list(caller->mm, rgnode) < 0) {
+  if (enlist_vm_freerg_list(caller->mm, rgnode) < 0) {// Trong hàm này đã được merge
     printf("ERROR: Failed to enlist the free region.\n ");
     return -1;
   }

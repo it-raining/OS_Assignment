@@ -607,61 +607,36 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
 /*
     Mở rộng giới hạn vùng địa chỉ ảo (Virtual Memory Area - VMA)
 */
-int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz,
-                  int *inc_limit_ret) {
-  struct vm_rg_struct *newrg = malloc(sizeof(struct vm_rg_struct));
-  int inc_amt = PAGING_PAGE_ALIGNSZ(inc_sz);                        // Kích thước vùng nhớ mới cần cấp phát
-  int incnumpage = inc_amt / PAGING_PAGESZ;
-  struct vm_rg_struct *area =
-      get_vm_area_node_at_brk(caller, vmaid, inc_sz, inc_amt);
-  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz, int* inc_limit_ret)
+{
+  struct vm_rg_struct * newrg = malloc(sizeof(struct vm_rg_struct));
+  int inc_amt = PAGING_PAGE_ALIGNSZ(inc_sz);
+  int incnumpage =  inc_amt / PAGING_PAGESZ;    // xác định số page thực tế cần thêm
+  struct vm_rg_struct *area = get_vm_area_node_at_brk(caller, vmaid, inc_sz, inc_amt); // lấy thêm vùng nhớ mới tại địa chỉ brk dựa trên inc_sz
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid); // lấy area tương ứng id
 
   int old_end = cur_vma->vm_end;
 
   /*Validate overlap of obtained region */
-  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0) {
-    printf("Overlaped vm_area regions\n");
-    free(newrg);
+  if (validate_overlap_vm_area(caller, vmaid, area->rg_start, area->rg_end) < 0){
+    printf("Error: Overlap!!\n");
     return -1; /*Overlap and failed allocation */
   }
-  
-// #ifdef MM_PAGING_HEAP_GODOWN
-//   if (cur_vma->vm_id == 1) {
-//     cur_vma->sbrk -= inc_sz;
-//     if (area->rg_end < cur_vma->vm_end) {
-//       cur_vma->vm_end -= inc_amt;
-//     }
-//   } else {
-//     cur_vma->sbrk += inc_sz;
-//     if (area->rg_end > cur_vma->vm_end) {
-//       cur_vma->vm_end += inc_amt;
-//     }
-//   }
-// #else
-//   cur_vma->sbrk += inc_sz;
-//   if (area->rg_end > cur_vma->vm_end) {
-//     cur_vma->vm_end += inc_amt;
-//   }
-// #endif
-//   *inc_limit_ret = cur_vma->vm_end;
+    
 
-//   if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage,
-//                  newrg) < 0) {
-//     printf("Failed mapping memory to RAM\n");
-//     free(newrg);
-//     return -1; /* Map the memory to MEMRAM */
-//   }
+  /* TODO: Obtain the new vm area based on vmaid */
+  if (vm_map_ram(caller, area->rg_start, area->rg_end, 
+                    old_end, incnumpage , newrg) < 0){
+      free(newrg);
+      printf("Error: Can't mapping memory!\n");
+      return -1; /* Map the memory to MEMRAM */
+    }
+    
+  cur_vma->vm_end = area->rg_end;   // thay đổi giới hạn
+  *inc_limit_ret = cur_vma->vm_end - old_end; // ghi lại kích thước mở rộng
 
-//   printf("Increased vm_area %d\n", vmaid);
-  // return *inc_limit_ret;
-
-
-  cur_vma->vm_end += inc_sz;
-  cur_vma->sbrk += inc_sz;
-
-  if (vm_map_ram(caller, area->rg_start, area->rg_end, old_end, incnumpage , newrg) < 0)
-    return -1; /* Map the memory to MEMRAM */
   return 0;
+
 }
 
 /*find_victim_page - find victim page
